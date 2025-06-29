@@ -34,23 +34,26 @@ const allowedOrigins = [
 
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin) return callback(null, true);
-
         const allowedOrigins = [
             'http://localhost:5500',
-            'http://127.0.0.1:5500'
+            'http://127.0.0.1:5500',
+            'https://trabalho2-mashup-apis-itsandre03.vercel.app'
         ];
-
-        // Regex correto para permitir subdomínios do Vercel:
+        
+        // Permitir requisições sem origem (como mobile apps ou curl)
+        if (!origin) return callback(null, true);
+        
+        // Permitir subdomínios do Vercel
         const vercelRegex = /^https:\/\/.*\.vercel\.app$/;
-
+        
         if (allowedOrigins.includes(origin) || vercelRegex.test(origin)) {
             callback(null, true);
         } else {
             callback(new Error('Não permitido pelo CORS'));
         }
     },
-    credentials: true
+    credentials: true, // Permite cookies
+    methods: ['GET', 'POST', 'PUT', 'DELETE'] // Métodos permitidos
 }));
 
 const PORT = process.env.PORT || 3000;
@@ -60,17 +63,28 @@ app.use(express.static(path.join(__dirname, '../frontend')));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+app.use((req, res, next) => {
+    // Configurar headers para HTTPS em produção
+    if (process.env.NODE_ENV === 'production') {
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Origin', req.headers.origin || 'https://trabalho2-mashup-apis-itsandre03.vercel.app');
+    }
+    next();
+});
+
 // Configuração de sessão
 app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    maxAge: 24 * 60 * 60 * 1000,
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // Só HTTPS em produção
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
-  }
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        maxAge: 24 * 60 * 60 * 1000,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production', // HTTPS em produção
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined // Dominio do Render
+    },
+    proxy: true // Importante para serviços como Render/Vercel
 }));
 
 // Passport e Flash
