@@ -41,19 +41,17 @@ app.use(cors({
             'http://127.0.0.1:5500'
         ];
 
-        const vercelRegex = /^https:\\/\\/.*\\.vercel\\.app$/; // <-- Aqui estava mal, as barras são desnecessárias
+        // Regex correto para permitir subdomínios do Vercel:
+        const vercelRegex = /^https:\/\/.*\.vercel\.app$/;
 
-        // Regex corrigido:
-        const vercelRegexCorrigido = /^https:\/\/.*\.vercel\.app$/;
-
-        if (allowedOrigins.includes(origin) || vercelRegexCorrigido.test(origin)) {
+        if (allowedOrigins.includes(origin) || vercelRegex.test(origin)) {
             callback(null, true);
         } else {
             callback(new Error('Não permitido pelo CORS'));
         }
     },
     credentials: true
-}))
+}));
 
 const PORT = process.env.PORT || 3000;
 
