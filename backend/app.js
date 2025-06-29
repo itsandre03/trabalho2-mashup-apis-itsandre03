@@ -11,6 +11,8 @@ const crypto = require('crypto');
 const fetch = require('node-fetch');
 const cors = require('cors');
 
+app.set('trust proxy', 1);
+
 // Verificar variáveis essenciais
 if (!process.env.MONGODB_URI) {
   console.error('❌ Erro: MONGODB_URI não definida no .env');
@@ -26,11 +28,16 @@ if (!process.env.SESSION_SECRET) {
 
 const app = express();
 // Configuração do CORS para permitir múltiplas origens
-const allowedOrigins = [
+app.use(cors({
+  origin: [
     'http://localhost:5500',
     'http://127.0.0.1:5500',
     'https://trabalho2-mashup-apis-itsandre03.vercel.app'
-];
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 app.use(cors({
     origin: function (origin, callback) {
@@ -65,11 +72,13 @@ app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
+  proxy: true, // Adicione esta linha
   cookie: {
     maxAge: 24 * 60 * 60 * 1000,
     httpOnly: true,
-    secure: true,             // Garante que só HTTPS aceita cookies
-    sameSite: 'none'          // Necessário para cookies cross-site
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined
   }
 }));
 
