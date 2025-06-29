@@ -357,11 +357,6 @@ app.post('/api/update-password', ensureAuthenticated, async (req, res) => {
   }
 });
 
-// Rota para servir páginas HTML
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
 // Middleware de erro
 app.use((err, req, res, next) => {
   console.error('Erro:', err.stack);
