@@ -671,22 +671,44 @@ document.addEventListener('click', function(e) {
 
 // Inicialização
 window.addEventListener('DOMContentLoaded', async () => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/user`, {
-      credentials: 'include' // Adicione esta linha
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      currentUser = data.username;
-      document.getElementById('welcomeUsername').textContent = `Bem-vindo(a), ${currentUser}`;
-      document.getElementById('welcomeUsernameProfile').textContent = `Bem-vindo(a), ${currentUser}`;
-      showPage('dashboardPage');
-    } else {
-      throw new Error();
+    try {
+        // Primeiro verificar a sessão
+        const sessionResponse = await fetch(`${API_BASE_URL}/check-session`, {
+            credentials: 'include'
+        });
+        
+        if (sessionResponse.ok) {
+            const sessionData = await sessionResponse.json();
+            if (sessionData.authenticated) {
+                currentUser = sessionData.user.username;
+                localStorage.setItem('currentUser', currentUser);
+                document.getElementById('welcomeUsername').textContent = `Bem-vindo(a), ${currentUser}`;
+                document.getElementById('welcomeUsernameProfile').textContent = `Bem-vindo(a), ${currentUser}`;
+                showPage('dashboardPage');
+                return;
+            }
+        }
+        
+        // Se não autenticado, verificar localStorage como fallback
+        const storedUser = localStorage.getItem('currentUser');
+        if (storedUser) {
+            // Tentar renovar a sessão
+            const userResponse = await fetch(`${API_BASE_URL}/api/user`, {
+                credentials: 'include'
+            });
+            
+            if (userResponse.ok) {
+                const userData = await userResponse.json();
+                currentUser = userData.username;
+                showPage('dashboardPage');
+                return;
+            }
+        }
+        
+        // Se tudo falhar, ir para login
+        throw new Error('Não autenticado');
+    } catch (error) {
+        localStorage.removeItem('currentUser');
+        showPage('loginPage');
     }
-  } catch {
-    localStorage.removeItem('currentUser');
-    showPage('loginPage');
-  }
 });
