@@ -10,86 +10,97 @@ const crypto = require('crypto');
 const fetch = require('node-fetch');
 const cors = require('cors');
 
-// Verificar variáveis de ambiente essenciais
+// Verificar variáveis essenciais
 if (!process.env.MONGODB_URI) {
-  console.error('Erro: Variável MONGODB_URI não definida no ficheiro .env');
+  console.error('Erro: MONGODB_URI não definida no .env');
   process.exit(1);
 }
 
 // Gerar chave secreta se não existir
 if (!process.env.SESSION_SECRET) {
-  const chaveTemporaria = crypto.randomBytes(32).toString('hex');
-  process.env.SESSION_SECRET = chaveTemporaria;
+  const tempSecret = crypto.randomBytes(32).toString('hex');
+  process.env.SESSION_SECRET = tempSecret;
 }
 
-const aplicacao = express();
+const app = express();
 
-// Configuração de CORS
-const origensPermitidas = [
-  'https://trabalho2-mashup-apis-itsandre03.vercel.app'
+// Configuração do CORS para permitir múltiplas origens
+const allowedOrigins = [
+    'http://localhost:5500',
+    'http://127.0.0.1:5500',
+    'https://trabalho2-mashup-apis-itsandre03.vercel.app',
+    'https://trabalho2-mashup-apis-itsandre03-git-main-itsandres-projects.vercel.app'
 ];
 
-// Permitir localhost em ambiente de desenvolvimento
-if (process.env.NODE_ENV !== 'producao') {
-  origensPermitidas.push('http://localhost:5500', 'http://127.0.0.1:5500');
-}
-
-aplicacao.use(cors({
-  origin: function (origem, callback) {
-    if (!origem || origensPermitidas.includes(origem)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Origem não permitida pela política de CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+app.use(cors({
+    origin: function (origin, callback) {
+        // Permitir requisições sem origem (como mobile apps ou curl)
+        if (!origin) return callback(null, true);
+        
+        // Permitir todas as origens na lista
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } 
+        // Permitir subdomínios do Vercel
+        else if (/\.vercel\.app$/.test(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Não permitido pela política de CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-const PORTA = process.env.PORT || 3000;
+// Middleware para pré-voo CORS
+app.options('*', cors());
+
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Configuração de sessão
-aplicacao.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    maxAge: 24 * 60 * 60 * 1000, // 24 horas
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'producao',
-    sameSite: process.env.NODE_ENV === 'producao' ? 'none' : 'lax',
-  },
-  proxy: true
+app.use(session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        maxAge: 24 * 60 * 60 * 1000, // 24 horas
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    },
+    proxy: true
 }));
 
-// Inicialização do Passport
-aplicacao.use(passport.initialize());
-aplicacao.use(passport.session());
-aplicacao.use(flash());
-aplicacao.use(express.json());
+// Passport e Flash
+app.use(passport.initialize());
+app.use(passport.session());
+app.use(flash());
 
-// Ligação com a base de dados MongoDB
+// Ligação com MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 })
 .then(() => console.log('Ligação estabelecida com MongoDB Atlas'))
-.catch(erro => {
-  console.error('Falha na ligação com MongoDB:', erro.message);
+.catch(err => {
+  console.error('Falha na ligação com MongoDB:', err.message);
   process.exit(1);
 });
 
 // Modelo de Utilizador
-const EsquemaUtilizador = new mongoose.Schema({
-  nomeUtilizador: { 
+const UserSchema = new mongoose.Schema({
+  username: { 
     type: String, 
     unique: true,
     required: true,
     trim: true,
     minlength: 3
   },
-  palavraPasse: {
+  password: {
     type: String,
     required: true,
     minlength: 6,
@@ -97,324 +108,324 @@ const EsquemaUtilizador = new mongoose.Schema({
   }
 });
 
-// Encriptação da palavra-passe antes de armazenar
-EsquemaUtilizador.pre('save', async function(seguinte) {
-  if (!this.isModified('palavraPasse')) return seguinte();
+// Hash da palavra-passe antes de guardar
+UserSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
   try {
-    const sal = await bcrypt.genSalt(10);
-    this.palavraPasse = await bcrypt.hash(this.palavraPasse, sal);
-    seguinte();
-  } catch (erro) {
-    seguinte(erro);
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (err) {
+    next(err);
   }
 });
 
-const Utilizador = mongoose.model('Utilizador', EsquemaUtilizador);
+const User = mongoose.model('User', UserSchema);
 
 // Modelo de Histórico de Pesquisas
-const EsquemaHistorico = new mongoose.Schema({
-  idUtilizador: { type: mongoose.Schema.Types.ObjectId, ref: 'Utilizador', required: true },
+const SearchHistorySchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   pokemon: { type: String },
   digimon: { type: String },
-  dataHora: { type: Date, default: Date.now }
+  timestamp: { type: Date, default: Date.now }
 });
-const Historico = mongoose.model('Historico', EsquemaHistorico);
+const SearchHistory = mongoose.model('SearchHistory', SearchHistorySchema);
 
-// Estratégia de Autenticação Local
+// Estratégia Local do Passport
 passport.use(new LocalStrategy(
-  async (nomeUtilizador, palavraPasse, concluido) => {
+  async (username, password, done) => {
     try {
-      const utilizador = await Utilizador.findOne({ nomeUtilizador }).select('+palavraPasse');
-      if (!utilizador) return concluido(null, false, { message: 'Credenciais inválidas' });
+      const user = await User.findOne({ username }).select('+password');
+      if (!user) return done(null, false, { message: 'Credenciais inválidas' });
       
-      const valido = await bcrypt.compare(palavraPasse, utilizador.palavraPasse);
-      if (!valido) return concluido(null, false, { message: 'Credenciais inválidas' });
+      const isValid = await bcrypt.compare(password, user.password);
+      if (!isValid) return done(null, false, { message: 'Credenciais inválidas' });
       
-      return concluido(null, utilizador);
-    } catch (erro) {
-      return concluido(erro);
+      return done(null, user);
+    } catch (err) {
+      return done(err);
     }
   }
 ));
 
-passport.serializeUser((utilizador, concluido) => concluido(null, utilizador.id));
-passport.deserializeUser(async (id, concluido) => {
+passport.serializeUser((user, done) => done(null, user.id));
+passport.deserializeUser(async (id, done) => {
   try {
-    const utilizador = await Utilizador.findById(id);
-    concluido(null, utilizador);
-  } catch (erro) {
-    concluido(erro);
+    const user = await User.findById(id);
+    done(null, user);
+  } catch (err) {
+    done(err);
   }
 });
 
 // Middleware de autenticação
-function verificarAutenticacao(requisicao, resposta, seguinte) {
-  if (requisicao.isAuthenticated()) return seguinte();
-  resposta.status(401).json({ sucesso: false, mensagem: 'Acesso não autorizado' });
+function ensureAuthenticated(req, res, next) {
+  if (req.isAuthenticated()) return next();
+  res.status(401).json({ success: false, message: 'Não autenticado' });
 }
 
 // URLs das APIs externas
-const URL_POKEAPI = 'https://pokeapi.co/api/v2/';
-const URL_DIGIMON_API = 'https://digi-api.com/api/v1/';
+const POKEAPI_URL = 'https://pokeapi.co/api/v2/';
+const DIGIMON_API_URL = 'https://digi-api.com/api/v1/';
 
-// Rota principal da API
-aplicacao.get('/', (requisicao, resposta) => {
-  resposta.json({
-    mensagem: "Bem-vindo à API de Mashup Pokémon/Digimon",
+// Rota raiz da API
+app.get('/', (req, res) => {
+  res.json({
+    message: "Bem-vindo à API do Mashup Pokémon/Digimon",
     endpoints: {
-      autenticacao: [
+      auth: [
         "POST /login - Autenticar utilizador",
-        "POST /registar - Registar novo utilizador",
-        "GET /terminar-sessao - Terminar sessão",
-        "GET /verificar-sessao - Verificar estado da sessão"
+        "POST /register - Registar novo utilizador",
+        "GET /logout - Terminar sessão",
+        "GET /check-session - Verificar sessão"
       ],
       api: [
-        "GET /api/pesquisar/pokemon?nome=:nome - Pesquisar Pokémon",
-        "GET /api/pesquisar/digimon?nome=:nome - Pesquisar Digimon",
-        "GET /api/historico - Obter histórico de pesquisas",
-        "POST /api/atualizar-palavra-passe - Atualizar palavra-passe"
+        "GET /api/search/pokemon?name=:name - Pesquisar Pokémon",
+        "GET /api/search/digimon?name=:name - Pesquisar Digimon",
+        "GET /api/history - Obter histórico de pesquisas",
+        "POST /api/update-password - Atualizar palavra-passe"
       ]
     }
   });
 });
 
-// Rota de Autenticação
-aplicacao.post('/login', (requisicao, resposta, seguinte) => {
-  passport.authenticate('local', (erro, utilizador, informacao) => {
-    if (erro) {
-      return resposta.status(500).json({ sucesso: false, mensagem: 'Erro no servidor' });
+// Rota de Autenticação (JSON)
+app.post('/login', (req, res, next) => {
+  passport.authenticate('local', (err, user, info) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro no servidor' });
     }
-    if (!utilizador) {
-      return resposta.status(401).json({ sucesso: false, mensagem: informacao.mensagem || 'Credenciais inválidas' });
+    if (!user) {
+      return res.status(401).json({ success: false, message: info.message || 'Credenciais inválidas' });
     }
-    requisicao.logIn(utilizador, (erro) => {
-      if (erro) {
-        return resposta.status(500).json({ sucesso: false, mensagem: 'Erro no processo de autenticação' });
+    req.logIn(user, (err) => {
+      if (err) {
+        return res.status(500).json({ success: false, message: 'Erro na autenticação' });
       }
-      return resposta.json({ 
-        sucesso: true, 
-        utilizador: { nomeUtilizador: utilizador.nomeUtilizador } 
+      return res.json({ 
+        success: true, 
+        user: { username: user.username } 
       });
     });
-  })(requisicao, resposta, seguinte);
+  })(req, res, next);
 });
 
 // Rota de Verificação de Sessão
-aplicacao.get('/verificar-sessao', (requisicao, resposta) => {
-  if (requisicao.isAuthenticated()) {
-    return resposta.json({ autenticado: true, utilizador: { nomeUtilizador: requisicao.user.nomeUtilizador } });
+app.get('/check-session', (req, res) => {
+  if (req.isAuthenticated()) {
+    return res.json({ authenticated: true, user: { username: req.user.username } });
   }
-  resposta.json({ autenticado: false });
+  res.json({ authenticated: false });
 });
 
-// Rota de Registo
-aplicacao.post('/registar', async (requisicao, resposta) => {
+// Rota de Registo (JSON)
+app.post('/register', async (req, res) => {
   try {
-    const { nomeUtilizador, palavraPasse } = requisicao.body;
+    const { username, password } = req.body;
     
-    // Validação de entrada
-    if (!nomeUtilizador || !palavraPasse || palavraPasse.length < 6) {
-      return resposta.status(400).json({ 
-        sucesso: false, 
-        mensagem: 'Nome de utilizador e palavra-passe (mínimo 6 caracteres) são obrigatórios' 
+    // Validação básica
+    if (!username || !password || password.length < 6) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Utilizador e palavra-passe (mínimo 6 caracteres) são obrigatórios' 
       });
     }
     
-    const utilizadorExistente = await Utilizador.findOne({ nomeUtilizador });
-    if (utilizadorExistente) {
-      return resposta.status(400).json({ 
-        sucesso: false, 
-        mensagem: 'Nome de utilizador já registado' 
+    const existingUser = await User.findOne({ username });
+    if (existingUser) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Utilizador já registado' 
       });
     }
     
-    const novoUtilizador = new Utilizador({ nomeUtilizador, palavraPasse });
-    await novoUtilizador.save();
+    const newUser = new User({ username, password });
+    await newUser.save();
     
-    resposta.json({ 
-      sucesso: true, 
-      mensagem: 'Registo concluído com êxito. Pode agora autenticar-se' 
+    res.json({ 
+      success: true, 
+      message: 'Registo concluído com sucesso! Pode autenticar-se' 
     });
-  } catch (erro) {
-    console.error('Erro no processo de registo:', erro);
-    resposta.status(500).json({ 
-      sucesso: false, 
-      mensagem: 'Erro durante o registo de utilizador' 
+  } catch (err) {
+    console.error('Erro no registo:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erro ao registar utilizador' 
     });
   }
 });
 
-// Rota de Terminar Sessão
-aplicacao.get('/terminar-sessao', (requisicao, resposta) => {
-  requisicao.logout(function(erro) {
-    if (erro) {
-      return resposta.status(500).json({ sucesso: false, mensagem: 'Erro ao terminar sessão' });
+// Rota de Terminar Sessão (JSON)
+app.get('/logout', (req, res) => {
+  req.logout(function(err) {
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro ao terminar sessão' });
     }
-    // Destruir completamente a sessão
-    requisicao.session.destroy((erro) => {
-      if (erro) {
-        return resposta.status(500).json({ sucesso: false, mensagem: 'Erro ao terminar sessão' });
+    // Destruir a sessão completamente
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ success: false, message: 'Erro ao terminar sessão' });
       }
-      resposta.clearCookie('connect.sid');
-      resposta.json({ sucesso: true, mensagem: 'Sessão terminada com sucesso' });
+      res.clearCookie('connect.sid');
+      res.json({ success: true, message: 'Sessão terminada' });
     });
   });
 });
 
 // Rota para dados do utilizador
-aplicacao.get('/api/utilizador', verificarAutenticacao, (requisicao, resposta) => {
-  resposta.json({ nomeUtilizador: requisicao.user.nomeUtilizador });
+app.get('/api/user', ensureAuthenticated, (req, res) => {
+  res.json({ username: req.user.username });
 });
 
 // Rota para pesquisa de Pokémon
-aplicacao.get('/api/pesquisar/pokemon', verificarAutenticacao, async (requisicao, resposta) => {
+app.get('/api/search/pokemon', ensureAuthenticated, async (req, res) => {
   try {
-    const { nome } = requisicao.query;
-    const respostaAPI = await fetch(`${URL_POKEAPI}pokemon/${nome.toLowerCase()}`);
+    const { name } = req.query;
+    const response = await fetch(`${POKEAPI_URL}pokemon/${name.toLowerCase()}`);
     
-    if (!respostaAPI.ok) {
-      return resposta.status(404).json({ 
-        sucesso: false, 
-        erro: 'Pokémon não encontrado' 
+    if (!response.ok) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Pokémon não encontrado' 
       });
     }
     
-    const dados = await respostaAPI.json();
+    const data = await response.json();
     
-    // Armazenar no histórico
-    const entradaHistorico = new Historico({
-      idUtilizador: requisicao.user._id,
-      pokemon: nome,
-      dataHora: new Date()
+    // Guardar no histórico
+    const history = new SearchHistory({
+      userId: req.user._id,
+      pokemon: name,
+      timestamp: new Date()
     });
-    await entradaHistorico.save();
+    await history.save();
     
-    resposta.json(dados);
-  } catch (erro) {
-    console.error('Erro na pesquisa de Pokémon:', erro);
-    resposta.status(500).json({ 
-      sucesso: false, 
-      erro: 'Erro durante a pesquisa de Pokémon' 
+    res.json(data);
+  } catch (error) {
+    console.error('Erro ao pesquisar Pokémon:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erro ao pesquisar Pokémon' 
     });
   }
 });
 
 // Rota para pesquisa de Digimon
-aplicacao.get('/api/pesquisar/digimon', verificarAutenticacao, async (requisicao, resposta) => {
+app.get('/api/search/digimon', ensureAuthenticated, async (req, res) => {
   try {
-    const { nome } = requisicao.query;
-    const respostaAPI = await fetch(`${URL_DIGIMON_API}digimon?nome=${encodeURIComponent(nome)}`);
+    const { name } = req.query;
+    const response = await fetch(`${DIGIMON_API_URL}digimon?name=${encodeURIComponent(name)}`);
     
-    if (!respostaAPI.ok) {
-      return resposta.status(404).json({ 
-        sucesso: false, 
-        erro: 'Digimon não encontrado' 
+    if (!response.ok) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Digimon não encontrado' 
       });
     }
     
-    const { conteudo } = await respostaAPI.json();
+    const { content } = await response.json();
     
-    if (!conteudo || conteudo.length === 0) {
-      return resposta.status(404).json({ 
-        sucesso: false, 
-        erro: 'Digimon não encontrado' 
+    if (!content || content.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Digimon não encontrado' 
       });
     }
     
-    const respostaDetalhes = await fetch(`${URL_DIGIMON_API}digimon/${conteudo[0].id}`);
-    if (!respostaDetalhes.ok) {
-      return resposta.status(404).json({ 
-        sucesso: false, 
-        erro: 'Detalhes do Digimon não encontrados' 
+    const digimonResponse = await fetch(`${DIGIMON_API_URL}digimon/${content[0].id}`);
+    if (!digimonResponse.ok) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Detalhes do Digimon não encontrados' 
       });
     }
     
-    const dados = await respostaDetalhes.json();
+    const data = await digimonResponse.json();
     
-    // Armazenar no histórico
-    const entradaHistorico = new Historico({
-      idUtilizador: requisicao.user._id,
-      digimon: nome,
-      dataHora: new Date()
+    // Guardar no histórico
+    const history = new SearchHistory({
+      userId: req.user._id,
+      digimon: name,
+      timestamp: new Date()
     });
-    await entradaHistorico.save();
+    await history.save();
     
-    resposta.json(dados);
-  } catch (erro) {
-    console.error('Erro na pesquisa de Digimon:', erro);
-    resposta.status(500).json({ 
-      sucesso: false, 
-      erro: 'Erro durante a pesquisa de Digimon' 
+    res.json(data);
+  } catch (error) {
+    console.error('Erro ao pesquisar Digimon:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erro ao pesquisar Digimon' 
     });
   }
 });
 
 // Rota para histórico de pesquisas
-aplicacao.get('/api/historico', verificarAutenticacao, async (requisicao, resposta) => {
+app.get('/api/history', ensureAuthenticated, async (req, res) => {
   try {
-    const historico = await Historico.find({ idUtilizador: requisicao.user._id })
-      .sort({ dataHora: -1 })
+    const history = await SearchHistory.find({ userId: req.user._id })
+      .sort({ timestamp: -1 })
       .limit(10);
       
-    resposta.json(historico);
-  } catch (erro) {
-    console.error('Erro ao recuperar histórico:', erro);
-    resposta.status(500).json({ 
-      sucesso: false, 
-      erro: 'Erro ao obter histórico de pesquisas' 
+    res.json(history);
+  } catch (error) {
+    console.error('Erro ao pesquisar histórico:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erro ao pesquisar histórico' 
     });
   }
 });
 
 // Rota para atualizar palavra-passe
-aplicacao.post('/api/atualizar-palavra-passe', verificarAutenticacao, async (requisicao, resposta) => {
+app.post('/api/update-password', ensureAuthenticated, async (req, res) => {
   try {
-    const { novaPalavraPasse } = requisicao.body;
-    const utilizador = await Utilizador.findById(requisicao.user._id);
+    const { newPassword } = req.body;
+    const user = await User.findById(req.user._id);
     
-    if (!utilizador) {
-      return resposta.status(404).json({ 
-        sucesso: false, 
-        mensagem: 'Utilizador não encontrado' 
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Utilizador não encontrado' 
       });
     }
     
     // Atualizar palavra-passe
-    utilizador.palavraPasse = novaPalavraPasse;
-    await utilizador.save();
+    user.password = newPassword;
+    await user.save();
     
-    resposta.json({ 
-      sucesso: true, 
-      mensagem: 'Palavra-passe atualizada com sucesso' 
+    res.json({ 
+      success: true, 
+      message: 'Palavra-passe atualizada com sucesso' 
     });
-  } catch (erro) {
-    console.error('Erro na atualização de palavra-passe:', erro);
-    resposta.status(500).json({ 
-      sucesso: false, 
-      mensagem: 'Erro durante a atualização da palavra-passe' 
+  } catch (error) {
+    console.error('Erro ao atualizar palavra-passe:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erro ao atualizar palavra-passe' 
     });
   }
 });
 
-// Rota para endpoint não encontrado
-aplicacao.use((requisicao, resposta) => {
-  resposta.status(404).json({ 
-    sucesso: false, 
-    mensagem: "Endpoint não encontrado" 
+// Rota para 404 (Endpoint não encontrado)
+app.use((req, res) => {
+  res.status(404).json({ 
+    success: false, 
+    message: "Endpoint não encontrado" 
   });
 });
 
-// Middleware de tratamento de erros
-aplicacao.use((erro, requisicao, resposta, seguinte) => {
-  console.error('Erro:', erro.stack);
-  resposta.status(500).json({ 
-    sucesso: false, 
-    mensagem: 'Ocorreu um erro no servidor' 
+// Middleware de erro
+app.use((err, req, res, next) => {
+  console.error('Erro:', err);
+  res.status(500).json({ 
+    success: false, 
+    message: 'Ocorreu um erro interno no servidor' 
   });
 });
 
-// Iniciar o servidor
-aplicacao.listen(PORTA, () => {
-  console.log(`Servidor API em execução na porta ${PORTA}`);
-  console.log(`Modo de segurança: ${process.env.NODE_ENV === 'producao' ? 'HTTPS (sameSite=none)' : 'HTTP (sameSite=lax)'}`);
+// Iniciar servidor
+app.listen(PORT, () => {
+  console.log(`Servidor API em execução na porta ${PORT}`);
+  console.log(`Modo de segurança: ${process.env.NODE_ENV === 'production' ? 'HTTPS (sameSite=none)' : 'HTTP (sameSite=lax)'}`);
 });
