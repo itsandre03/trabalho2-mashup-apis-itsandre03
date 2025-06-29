@@ -27,15 +27,23 @@ if (!process.env.SESSION_SECRET) {
 const app = express();
 // Configuração do CORS para permitir múltiplas origens
 const allowedOrigins = [
-    'https://trabalho2-mashup-apis-itsandre03-git-main-itsandres-projects.vercel.app'
+    'http://localhost:5500',
+    'http://127.0.0.1:5500',
+    'https://trabalho2-mashup-apis-itsandre03.vercel.app'
 ];
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Permite requisições sem origem (como aplicações móveis ou pedidos curl)
         if (!origin) return callback(null, true);
-        
-        if (allowedOrigins.indexOf(origin) !== -1) {
+
+        const allowedOrigins = [
+            'http://localhost:5500',
+            'http://127.0.0.1:5500'
+        ];
+
+        const vercelRegex = /^https:\/\/.*\.vercel\.app$/;
+
+        if (allowedOrigins.includes(origin) || vercelRegex.test(origin)) {
             callback(null, true);
         } else {
             callback(new Error('Não permitido pelo CORS'));
@@ -43,6 +51,7 @@ app.use(cors({
     },
     credentials: true
 }));
+
 const PORT = process.env.PORT || 3000;
 
 // Middleware para servir ficheiros estáticos
