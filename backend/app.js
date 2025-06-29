@@ -6,7 +6,6 @@ const LocalStrategy = require('passport-local').Strategy;
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 const flash = require('express-flash');
-const path = require('path');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
 const cors = require('cors');
@@ -25,69 +24,58 @@ if (!process.env.SESSION_SECRET) {
 }
 
 const app = express();
-// Configuração do CORS para permitir múltiplas origens
+
+// Configuração do CORS
 const allowedOrigins = [
-    'http://localhost:5500',
-    'http://127.0.0.1:5500',
-    'https://trabalho2-mashup-apis-itsandre03.vercel.app'
+  'https://trabalho2-mashup-apis-itsandre03.vercel.app' // Seu frontend em produção
 ];
 
+// Permitir localhost em desenvolvimento
+if (process.env.NODE_ENV !== 'production') {
+  allowedOrigins.push('http://localhost:5500', 'http://127.0.0.1:5500');
+}
+
 app.use(cors({
-    origin: function (origin, callback) {
-        const allowedOrigins = [
-            'http://localhost:5500',
-            'http://127.0.0.1:5500',
-            'https://trabalho2-mashup-apis-itsandre03.vercel.app'
-        ];
-        
-        // Permitir requisições sem origem (como mobile apps ou curl)
-        if (!origin) return callback(null, true);
-        
-        // Permitir subdomínios do Vercel
-        const vercelRegex = /^https:\/\/.*\.vercel\.app$/;
-        
-        if (allowedOrigins.includes(origin) || vercelRegex.test(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Não permitido pelo CORS'));
-        }
-    },
-    credentials: true, // Permite cookies
-    methods: ['GET', 'POST', 'PUT', 'DELETE'] // Métodos permitidos
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Não permitido pelo CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 const PORT = process.env.PORT || 3000;
 
-// Middleware para servir ficheiros estáticos
-app.use(express.static(path.join(__dirname, '../frontend')));
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-
+// Middleware para logs de sessão (opcional)
 app.use((req, res, next) => {
-    console.log('Session ID:', req.sessionID);
-    console.log('Cookies:', req.headers.cookie);
-    next();
+  console.log('Session ID:', req.sessionID);
+  console.log('Cookies:', req.headers.cookie);
+  next();
 });
 
 // Configuração de sessão
 app.use(session({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        maxAge: 24 * 60 * 60 * 1000, // 24 horas
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production', // true em produção
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'none' em produção
-        // Remova a propriedade domain ou ajuste conforme necessário
-    },
-    proxy: true // Importante para Render/Vercel
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 24 * 60 * 60 * 1000, // 24 horas
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  },
+  proxy: true
 }));
 
 // Passport e Flash
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(flash());
+app.use(express.json());
 
 // Ligação com MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
@@ -177,6 +165,27 @@ function ensureAuthenticated(req, res, next) {
 const POKEAPI_URL = 'https://pokeapi.co/api/v2/';
 const DIGIMON_API_URL = 'https://digi-api.com/api/v1/';
 
+// Rota raiz da API
+app.get('/', (req, res) => {
+  res.json({
+    message: "Bem-vindo à API do Mashup Pokémon/Digimon",
+    endpoints: {
+      auth: [
+        "POST /login - Autenticar usuário",
+        "POST /register - Registrar novo usuário",
+        "GET /logout - Terminar sessão",
+        "GET /check-session - Verificar sessão"
+      ],
+      api: [
+        "GET /api/search/pokemon?name=:name - Pesquisar Pokémon",
+        "GET /api/search/digimon?name=:name - Pesquisar Digimon",
+        "GET /api/history - Obter histórico de pesquisas",
+        "POST /api/update-password - Atualizar senha"
+      ]
+    }
+  });
+});
+
 // Rota de Autenticação (JSON)
 app.post('/login', (req, res, next) => {
   passport.authenticate('local', (err, user, info) => {
@@ -255,7 +264,7 @@ app.get('/logout', (req, res) => {
         console.error('Erro ao destruir sessão:', err);
         return res.status(500).json({ success: false, message: 'Erro ao terminar sessão' });
       }
-      res.clearCookie('connect.sid'); // Nome padrão do cookie de sessão
+      res.clearCookie('connect.sid');
       res.json({ success: true, message: 'Sessão terminada' });
     });
   });
@@ -396,9 +405,12 @@ app.post('/api/update-password', ensureAuthenticated, async (req, res) => {
   }
 });
 
-// Rota para servir páginas HTML
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend', 'index.html'));
+// Rota para 404 (Endpoint não encontrado)
+app.use((req, res) => {
+  res.status(404).json({ 
+    success: false, 
+    message: "Endpoint não encontrado" 
+  });
 });
 
 // Middleware de erro
@@ -406,12 +418,12 @@ app.use((err, req, res, next) => {
   console.error('Erro:', err.stack);
   res.status(500).json({ 
     success: false, 
-    message: 'Ocorreu um erro!' 
+    message: 'Ocorreu um erro interno no servidor' 
   });
 });
 
 // Iniciar servidor
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor em execução na porta ${PORT}`);
+  console.log(`🚀 Servidor API em execução na porta ${PORT}`);
   console.log(`🔒 Modo de segurança: ${process.env.NODE_ENV === 'production' ? 'HTTPS (sameSite=none)' : 'HTTP (sameSite=lax)'}`);
 });
