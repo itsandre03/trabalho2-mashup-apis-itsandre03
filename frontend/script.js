@@ -671,22 +671,22 @@ document.addEventListener('click', function(e) {
 
 // Inicialização
 window.addEventListener('DOMContentLoaded', async () => {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/user`, {
-            credentials: 'include'
-        });
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/user`, {
+      credentials: 'include' // Adicione esta linha
+    });
 
-        if (response.ok) {
-            const data = await response.json();
-            currentUser = data.username;
-            document.getElementById('welcomeUsername').textContent = `Bem-vindo(a), ${currentUser}`;
-            document.getElementById('welcomeUsernameProfile').textContent = `Bem-vindo(a), ${currentUser}`;
-            showPage('dashboardPage');
-        } else {
-            throw new Error();
-        }
-    } catch {
-        localStorage.removeItem('currentUser');
-        showPage('loginPage');
+    if (response.ok) {
+      const data = await response.json();
+      currentUser = data.username;
+      document.getElementById('welcomeUsername').textContent = `Bem-vindo(a), ${currentUser}`;
+      document.getElementById('welcomeUsernameProfile').textContent = `Bem-vindo(a), ${currentUser}`;
+      showPage('dashboardPage');
+    } else {
+      throw new Error();
     }
+  } catch {
+    localStorage.removeItem('currentUser');
+    showPage('loginPage');
+  }
 });
