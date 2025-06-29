@@ -65,11 +65,11 @@ app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { 
-    maxAge: 24 * 60 * 60 * 1000, // 24 horas
+  cookie: {
+    maxAge: 24 * 60 * 60 * 1000,
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // HTTPS em produção
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // Necessário para cross-site
+    secure: true,             // Garante que só HTTPS aceita cookies
+    sameSite: 'none'          // Necessário para cookies cross-site
   }
 }));
 
