@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monster Compare</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="page-container">
+        <!-- Loading Overlay -->
+        <div class="loading-overlay">
+            <div class="spinner"></div>
+        </div>
+        
+        <!-- Alert Container -->
+        <div id="alertContainer" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>
+        
+        <!-- Sidebar Toggle (Mobile) -->
+        <button class="sidebar-toggle">
+            <i class="bi bi-list"></i>
+        </button>
+        
+        <!-- Login Page -->
+        <div id="loginPage" class="page active">
+            <div class="auth-container">
+                <div class="app-logo">
+                    <i class="bi bi-stars"></i> Monster Compare
+                </div>
+                <div class="card shadow-academic">
+                    <div class="card-header academic-header">
+                        <h4 class="mb-0">Entrar na Conta</h4>
+                    </div>
+                    <div class="card-body">
+                        <form id="loginForm">
+                            <div class="mb-3">
+                                <label for="loginUsername" class="form-label">Utilizador</label>
+                                <input type="text" class="form-control academic-input" id="loginUsername" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="loginPassword" class="form-label">Palavra-passe</label>
+                                <input type="password" class="form-control academic-input" id="loginPassword" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 py-2">Entrar</button>
+                        </form>
+                        <div class="mt-3 text-center">
+                            <a href="#" onclick="showPage('registerPage')">Criar nova conta</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Register Page -->
+        <div id="registerPage" class="page">
+            <div class="auth-container">
+                <div class="app-logo">
+                    <i class="bi bi-stars"></i> Monster Compare
+                </div>
+                <div class="card shadow-academic">
+                    <div class="card-header academic-header">
+                        <h4 class="mb-0">Criar Nova Conta</h4>
+                    </div>
+                    <div class="card-body">
+                        <form id="registerForm">
+                            <div class="mb-3">
+                                <label for="registerUsername" class="form-label">Utilizador</label>
+                                <input type="text" class="form-control academic-input" id="registerUsername" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="registerPassword" class="form-label">Palavra-passe</label>
+                                <input type="password" class="form-control academic-input" id="registerPassword" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 py-2">Registar</button>
+                        </form>
+                        <div class="mt-3 text-center">
+                            <a href="#" onclick="showPage('loginPage')">Já tem conta? Entrar</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Dashboard Page -->
+        <div id="dashboardPage" class="page">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <a class="sidebar-brand d-flex align-items-center justify-content-center" href="#">
+                    <i class="bi bi-stars me-2"></i>
+                    <span>Monster Compare</span>
+                </a>
+                <div class="sidebar-nav">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#" onclick="showPage('dashboardPage')">
+                                <i class="bi bi-graph-up"></i>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showPage('profilePage')">
+                                <i class="bi bi-person-circle"></i>
+                                <span>Perfil</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" id="logoutBtn">
+                                <i class="bi bi-box-arrow-right"></i>
+                                <span>Sair</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Topbar -->
+            <nav class="topbar navbar navbar-expand navbar-light bg-white">
+                <div class="container-fluid">
+                    <div class="d-flex align-items-center ms-auto">
+                        <span id="welcomeUsername" class="me-3 fw-medium">Bem-vindo(a), Utilizador</span>
+                        <div class="user-icon">
+                            <i class="bi bi-person"></i>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+            
+            <!-- Content -->
+            <div class="content-wrapper">
+                <div class="page-header">
+                    <h1 class="h3 mb-1">Comparador de Monstros</h1>
+                    <p class="text-muted mb-0">Compare Pokémon e Digimon usando APIs oficiais</p>
+                </div>
+                
+                <div class="row">
+                    <!-- Pokémon Section -->
+                    <div class="col-md-6">
+                        <div class="card shadow-academic">
+                            <div class="card-header" style="background: linear-gradient(135deg, var(--pokemon) 0%, #b3260a 100%); color: white;">
+                                <i class="bi bi-lightning-charge"></i> Pesquisar Pokémon
+                            </div>
+                            <div class="card-body">
+                                <div class="search-bar">
+                                    <input type="text" class="form-control academic-input" id="pokemonSearch" placeholder="Charmander...8" autocomplete="off">
+                                    <div id="pokemonSuggestions" class="search-results academic-dropdown"></div>
+                                </div>
+                                
+                                <div id="pokemonDetails" class="monster-card">
+                                    <div class="text-center py-5">
+                                        <i class="bi bi-search-heart" style="font-size: 3.5rem; color: #dee2e6;"></i>
+                                        <h4 class="mt-3 text-muted">Pesquise um Pokémon</h4>
+                                        <p class="text-muted mb-0">Comece a digitar para ver informações detalhadas</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Digimon Section -->
+                    <div class="col-md-6">
+                        <div class="card shadow-academic">
+                            <div class="card-header" style="background: linear-gradient(135deg, var(--digimon) 0%, #d96d15 100%); color: white;">
+                                <i class="bi bi-shield-shaded"></i> Pesquisar Digimon
+                            </div>
+                            <div class="card-body">
+                                <div class="search-bar">
+                                    <input type="text" class="form-control academic-input" id="digimonSearch" placeholder="Agumon..." autocomplete="off">
+                                    <div id="digimonSuggestions" class="search-results academic-dropdown"></div>
+                                </div>
+                                
+                                <div id="digimonDetails" class="monster-card">
+                                    <div class="text-center py-5">
+                                        <i class="bi bi-search-heart" style="font-size: 3.5rem; color: #dee2e6;"></i>
+                                        <h4 class="mt-3 text-muted">Pesquise um Digimon</h4>
+                                        <p class="text-muted mb-0">Comece a digitar para ver informações detalhadas</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Comparison Section -->
+                <div class="comparison-section">
+                    <h3 class="comparison-title">
+                        <i class="bi bi-arrow-left-right"></i> Comparação Pokémon vs Digimon
+                    </h3>
+                    <div id="comparisonDetails" class="comparison-container">
+                        <div class="text-center py-4">
+                            <i class="bi bi-clipboard2-data" style="font-size: 3rem; color: #adb5bd;"></i>
+                            <h4 class="mt-3">Selecione um Pokémon e um Digimon</h4>
+                            <p class="text-muted">Selecione um monstro em cada coluna para habilitar a comparação</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Profile Page -->
+        <div id="profilePage" class="page">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <a class="sidebar-brand d-flex align-items-center justify-content-center" href="#">
+                    <i class="bi bi-stars me-2"></i>
+                    <span>Monster Compare</span>
+                </a>
+                <div class="sidebar-nav">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showPage('dashboardPage')">
+                                <i class="bi bi-graph-up"></i>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#" onclick="showPage('profilePage')">
+                                <i class="bi bi-person-circle"></i>
+                                <span>Perfil</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" id="logoutBtnProfile">
+                                <i class="bi bi-box-arrow-right"></i>
+                                <span>Sair</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Topbar -->
+            <nav class="topbar navbar navbar-expand navbar-light bg-white">
+                <div class="container-fluid">
+                    <div class="d-flex align-items-center ms-auto">
+                        <span id="welcomeUsernameProfile" class="me-3 fw-medium">Bem-vindo(a), Utilizador</span>
+                        <div class="user-icon">
+                            <i class="bi bi-person"></i>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+            
+            <!-- Content -->
+            <div class="content-wrapper">
+                <div class="page-header d-flex justify-content-between align-items-center">
+                    <h1 class="h3 mb-0">Perfil do Utilizador</h1>
+                    <button class="btn btn-outline-primary" onclick="showPage('dashboardPage')">
+                        <i class="bi bi-arrow-left me-1"></i> Voltar ao Dashboard
+                    </button>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-lg-8">
+                        <div class="card mb-4 shadow-academic">
+                            <div class="card-header academic-header">
+                                <h6 class="m-0 fw-bold">Configurações da Conta</h6>
+                            </div>
+                            <div class="card-body">
+                                <form id="profileForm">
+                                    <div class="mb-3">
+                                        <label for="profileUsername" class="form-label">Nome de Utilizador</label>
+                                        <input type="text" class="form-control academic-input" id="profileUsername" disabled>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="newPassword" class="form-label">Nova Palavra-passe</label>
+                                        <input type="password" class="form-control academic-input" id="newPassword">
+                                    </div>
+                                    <div class="mb-4">
+                                        <label for="confirmNewPassword" class="form-label">Confirmar Nova Palavra-passe</label>
+                                        <input type="password" class="form-control academic-input" id="confirmNewPassword">
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Atualizar Palavra-passe</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-4">
+                        <div class="card shadow-academic h-100">
+                            <div class="card-header academic-header">
+                                <h6 class="m-0 fw-bold">Sobre o Sistema</h6>
+                            </div>
+                            <div class="card-body">
+                                <h5>Monster Compare</h5>
+                                <p class="text-muted">Plataforma académica para análise comparativa de Pokémon e Digimon.</p>
+                                
+                                <div class="mt-4">
+                                    <h6>Fontes de Dados:</h6>
+                                    <ul class="list-group list-group-flush">
+                                        <li class="list-group-item">
+                                            <i class="bi bi-lightning-charge me-2" style="color: var(--pokemon);"></i> PokeAPI
+                                        </li>
+                                        <li class="list-group-item">
+                                            <i class="bi bi-shield-shaded me-2" style="color: var(--digimon);"></i> Digi-API
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-12 mt-4">
+                        <div class="card shadow-academic">
+                            <div class="card-header academic-header">
+                            <h6 class="m-0 fw-bold">Histórico de Pesquisas</h6>
+                            </div>
+                            <div class="card-body">
+                            <div id="historyContainer">
+                                <!-- Histórico será carregado via JavaScript -->
+                            </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+        
+        <footer class="footer">
+            <div class="container text-center">
+                <small>Monster Compare &copy; 2025 - Projeto Acadêmico | André Falcão | Sofia Martins</small>
+            </div>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
