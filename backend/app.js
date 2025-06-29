@@ -26,16 +26,11 @@ if (!process.env.SESSION_SECRET) {
 
 const app = express();
 // Configuração do CORS para permitir múltiplas origens
-app.use(cors({
-  origin: [
+const allowedOrigins = [
     'http://localhost:5500',
     'http://127.0.0.1:5500',
     'https://trabalho2-mashup-apis-itsandre03.vercel.app'
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+];
 
 app.use(cors({
     origin: function (origin, callback) {
@@ -70,13 +65,11 @@ app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  proxy: true, // Adicione esta linha
   cookie: {
     maxAge: 24 * 60 * 60 * 1000,
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined
+    secure: process.env.NODE_ENV === 'production', // Só HTTPS em produção
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
 }));
 
