@@ -27,9 +27,7 @@ if (!process.env.SESSION_SECRET) {
 const app = express();
 // Configuração do CORS para permitir múltiplas origens
 const allowedOrigins = [
-    'http://localhost:5500',
-    'http://127.0.0.1:5500',
-    'https://trabalho2-mashup-apis-itsandre03.vercel.app'
+    'https://trabalho2-mashup-apis-itsandre03-git-main-itsandres-projects.vercel.app'
 ];
 
 app.use(cors({
