@@ -3,12 +3,7 @@ let currentUser = null;
 let selectedPokemon = null;
 let selectedDigimon = null;
 let searchHistory = [];
-let API_BASE_URL = 'http://localhost:3000';
-
-// Verificar se estamos a usar 127.0.0.1 e ajustar o URL
-if (window.location.hostname === '127.0.0.1') {
-    API_BASE_URL = 'http://127.0.0.1:3000';
-}
+let API_BASE_URL = 'https://trabalho2-mashup-apis-itsandre03.onrender.com';
 
 // Funções para controlo das páginas
 function showPage(pageId) {
