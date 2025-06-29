@@ -64,11 +64,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 app.use((req, res, next) => {
-    // Configurar headers para HTTPS em produção
-    if (process.env.NODE_ENV === 'production') {
-        res.setHeader('Access-Control-Allow-Credentials', 'true');
-        res.setHeader('Access-Control-Allow-Origin', req.headers.origin || 'https://trabalho2-mashup-apis-itsandre03.vercel.app');
-    }
+    console.log('Session ID:', req.sessionID);
+    console.log('Cookies:', req.headers.cookie);
     next();
 });
 
@@ -78,13 +75,13 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        maxAge: 24 * 60 * 60 * 1000,
+        maxAge: 24 * 60 * 60 * 1000, // 24 horas
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production', // HTTPS em produção
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined // Dominio do Render
+        secure: process.env.NODE_ENV === 'production', // true em produção
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'none' em produção
+        // Remova a propriedade domain ou ajuste conforme necessário
     },
-    proxy: true // Importante para serviços como Render/Vercel
+    proxy: true // Importante para Render/Vercel
 }));
 
 // Passport e Flash
