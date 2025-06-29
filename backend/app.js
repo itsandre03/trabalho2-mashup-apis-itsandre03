@@ -28,7 +28,8 @@ const app = express();
 // Configuração do CORS para permitir múltiplas origens
 const allowedOrigins = [
     'http://localhost:5500',
-    'http://127.0.0.1:5500'
+    'http://127.0.0.1:5500',
+    'https://trabalho2-mashup-apis-itsandre03.vercel.app'
 ];
 
 app.use(cors({
@@ -59,8 +60,8 @@ app.use(session({
   cookie: { 
     maxAge: 24 * 60 * 60 * 1000, // 24 horas
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax'
+    secure: process.env.NODE_ENV === 'production', // HTTPS em produção
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // Necessário para cross-site
   }
 }));
 
@@ -178,6 +179,14 @@ app.post('/login', (req, res, next) => {
   })(req, res, next);
 });
 
+// Rota de Verificação de Sessão
+app.get('/check-session', (req, res) => {
+  if (req.isAuthenticated()) {
+    return res.json({ authenticated: true, user: { username: req.user.username } });
+  }
+  res.json({ authenticated: false });
+});
+
 // Rota de Registo (JSON)
 app.post('/register', async (req, res) => {
   try {
@@ -217,8 +226,19 @@ app.post('/register', async (req, res) => {
 
 // Rota de Terminar Sessão (JSON)
 app.get('/logout', (req, res) => {
-  req.logout(() => {
-    res.json({ success: true, message: 'Sessão terminada' });
+  req.logout(function(err) {
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro ao terminar sessão' });
+    }
+    // Destruir a sessão completamente
+    req.session.destroy((err) => {
+      if (err) {
+        console.error('Erro ao destruir sessão:', err);
+        return res.status(500).json({ success: false, message: 'Erro ao terminar sessão' });
+      }
+      res.clearCookie('connect.sid'); // Nome padrão do cookie de sessão
+      res.json({ success: true, message: 'Sessão terminada' });
+    });
   });
 });
 
@@ -357,6 +377,11 @@ app.post('/api/update-password', ensureAuthenticated, async (req, res) => {
   }
 });
 
+// Rota para servir páginas HTML
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // Middleware de erro
 app.use((err, req, res, next) => {
   console.error('Erro:', err.stack);
@@ -369,4 +394,5 @@ app.use((err, req, res, next) => {
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`🚀 Servidor em execução na porta ${PORT}`);
+  console.log(`🔒 Modo de segurança: ${process.env.NODE_ENV === 'production' ? 'HTTPS (sameSite=none)' : 'HTTP (sameSite=lax)'}`);
 });
