@@ -48,7 +48,7 @@ app.use(cors({
 const PORT = process.env.PORT || 3000;
 
 // Middleware para servir ficheiros estáticos
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, '../frontend')));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
@@ -379,7 +379,7 @@ app.post('/api/update-password', ensureAuthenticated, async (req, res) => {
 
 // Rota para servir páginas HTML
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, '../frontend', 'index.html'));
 });
 
 // Middleware de erro
