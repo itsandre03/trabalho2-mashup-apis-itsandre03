@@ -11,8 +11,6 @@ const crypto = require('crypto');
 const fetch = require('node-fetch');
 const cors = require('cors');
 
-app.set('trust proxy', 1);
-
 // Verificar variáveis essenciais
 if (!process.env.MONGODB_URI) {
   console.error('❌ Erro: MONGODB_URI não definida no .env');
